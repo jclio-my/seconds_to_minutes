@@ -26,24 +26,7 @@ interface Stats {
   minMinutes: number;
 }
 
-const SAMPLE_DATA = `176.38s
-65.37s
-56.43s
-92.53s
-104.3s
-113.33s
-94.27s
-89.33s
-72.1s
-137.53s
-97.63s
-74.4s
-51.83s
-79.37s
-28.57s
-63.6s
-55.07s
-136.8s`;
+const SAMPLE_DATA = ``;
 
 export const TimeConverter: React.FC = () => {
   const [inputText, setInputText] = useState<string>(SAMPLE_DATA);
