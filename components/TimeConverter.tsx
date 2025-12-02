@@ -95,7 +95,7 @@ export const TimeConverter: React.FC = () => {
   };
 
   const handleCopyTotalTime = () => {
-    const totalTimeText = `${Math.floor(stats.totalMinutes)}分钟${Math.round((stats.totalMinutes % 1) * 60)}秒`;
+    const totalTimeText = `标注${Math.floor(stats.totalMinutes)}分钟${Math.round((stats.totalMinutes % 1) * 60)}秒`;
     navigator.clipboard.writeText(totalTimeText);
     setTotalTimeCopied(true);
     setTimeout(() => setTotalTimeCopied(false), 2000);
