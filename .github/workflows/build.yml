@@ -1,0 +1,89 @@
+name: Build and Package
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            executable_name: run_app
+            dist_executable_name: run_dist
+            artifact_prefix: linux
+          - os: windows-latest
+            executable_name: run_app.exe
+            dist_executable_name: run_dist.exe
+            artifact_prefix: windows
+          - os: macos-latest
+            executable_name: run_app
+            dist_executable_name: run_dist
+            artifact_prefix: macos
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+
+    - name: Build web app
+      run: |
+        npm install
+        npm run build
+
+    - name: Build run_app executable with PyInstaller
+      run: |
+        pyinstaller --clean run_app.spec
+
+    - name: Build run_dist executable with PyInstaller
+      run: |
+        pyinstaller --clean run_dist.spec
+
+    - name: Upload run_app executable
+      uses: actions/upload-artifact@v3
+      with:
+        name: run_app-${{ matrix.artifact_prefix }}
+        path: dist/${{ matrix.executable_name }}
+
+    - name: Upload run_dist executable
+      uses: actions/upload-artifact@v3
+      with:
+        name: run_dist-${{ matrix.artifact_prefix }}
+        path: dist/${{ matrix.dist_executable_name }}
+
+    - name: Create release package
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        mkdir -p release
+        cp dist/${{ matrix.executable_name }} release/
+        cp dist/${{ matrix.dist_executable_name }} release/
+        cp README_run.md release/
+        cp -r dist/assets release/ 2>/dev/null || true
+        cp dist/index.html release/ 2>/dev/null || true
+        tar -czf time-converter-${{ matrix.artifact_prefix }}.tar.gz -C release .
+        
+    - name: Upload release asset
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./time-converter-${{ matrix.artifact_prefix }}.tar.gz
+        asset_name: time-converter-${{ matrix.artifact_prefix }}.tar.gz
+        asset_content_type: application/gzip
