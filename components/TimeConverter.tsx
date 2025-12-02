@@ -95,7 +95,18 @@ export const TimeConverter: React.FC = () => {
   };
 
   const handleCopyTotalTime = () => {
-    const totalTimeText = `标注${Math.floor(stats.totalMinutes)}分钟${Math.round((stats.totalMinutes % 1) * 60)}秒`;
+    // 修复的时间计算逻辑
+    const totalMinutes = stats.totalMinutes;
+    let minutes = Math.floor(totalMinutes);
+    let seconds = Math.round((totalMinutes % 1) * 60);
+    
+    // 处理秒数进位：如果秒数达到60，则分钟加1，秒数重置为0
+    if (seconds === 60) {
+      minutes += 1;
+      seconds = 0;
+    }
+    
+    const totalTimeText = `标注${minutes}分钟${seconds}秒`;
     navigator.clipboard.writeText(totalTimeText);
     setTotalTimeCopied(true);
     setTimeout(() => setTotalTimeCopied(false), 2000);
@@ -169,7 +180,19 @@ export const TimeConverter: React.FC = () => {
         <div className="grid grid-cols-2 gap-3">
             <StatCard label="数据行数" value={stats.count} />
             <div className="relative">
-              <StatCard label="分钟/秒" value={`标注${Math.floor(stats.totalMinutes)}分钟${Math.round((stats.totalMinutes % 1) * 60)}秒`} />
+              {(() => {
+                const totalMinutes = stats.totalMinutes;
+                let minutes = Math.floor(totalMinutes);
+                let seconds = Math.round((totalMinutes % 1) * 60);
+                
+                // 处理秒数进位：如果秒数达到60，则分钟加1，秒数重置为0
+                if (seconds === 60) {
+                  minutes += 1;
+                  seconds = 0;
+                }
+                
+                return <StatCard label="分钟/秒" value={`标注${minutes}分钟${seconds}秒`} />;
+              })()}
               <button
                 onClick={handleCopyTotalTime}
                 disabled={dataPoints.length === 0}
