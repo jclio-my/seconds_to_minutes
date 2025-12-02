@@ -31,6 +31,7 @@ const SAMPLE_DATA = ``;
 export const TimeConverter: React.FC = () => {
   const [inputText, setInputText] = useState<string>(SAMPLE_DATA);
   const [copied, setCopied] = useState<boolean>(false);
+  const [totalTimeCopied, setTotalTimeCopied] = useState<boolean>(false);
 
   // Parse logic
   const { dataPoints, stats } = useMemo(() => {
@@ -91,6 +92,13 @@ export const TimeConverter: React.FC = () => {
     navigator.clipboard.writeText(resultText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyTotalTime = () => {
+    const totalTimeText = `${Math.floor(stats.totalMinutes)}分钟${Math.round((stats.totalMinutes % 1) * 60)}秒`;
+    navigator.clipboard.writeText(totalTimeText);
+    setTotalTimeCopied(true);
+    setTimeout(() => setTotalTimeCopied(false), 2000);
   };
 
   const handleDownloadCSV = () => {
@@ -160,7 +168,21 @@ export const TimeConverter: React.FC = () => {
         {/* Statistics Card */}
         <div className="grid grid-cols-2 gap-3">
             <StatCard label="数据行数" value={stats.count} />
-            <StatCard label="总时长 (分钟)" value={stats.totalMinutes.toFixed(2)} />
+            <div className="relative">
+              <StatCard label="分钟/秒" value={`标注${Math.floor(stats.totalMinutes)}分钟${Math.round((stats.totalMinutes % 1) * 60)}秒`} />
+              <button
+                onClick={handleCopyTotalTime}
+                disabled={dataPoints.length === 0}
+                className={`absolute top-2 right-2 p-1.5 rounded text-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed
+                  ${totalTimeCopied
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                title="复制总时长"
+              >
+                {totalTimeCopied ? '✓' : <Copy size={12} />}
+              </button>
+            </div>
         </div>
 
         {/* Results Table */}
