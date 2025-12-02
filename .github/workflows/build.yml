@@ -32,7 +32,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 
@@ -55,13 +55,13 @@ jobs:
         pyinstaller --clean run_dist.spec
 
     - name: Upload run_app executable
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: run_app-${{ matrix.artifact_prefix }}
         path: dist/${{ matrix.executable_name }}
 
     - name: Upload run_dist executable
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: run_dist-${{ matrix.artifact_prefix }}
         path: dist/${{ matrix.dist_executable_name }}
@@ -79,11 +79,8 @@ jobs:
         
     - name: Upload release asset
       if: startsWith(github.ref, 'refs/tags/')
-      uses: actions/upload-release-asset@v1
+      uses: softprops/action-gh-release@v2
+      with:
+        files: time-converter-${{ matrix.artifact_prefix }}.tar.gz
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./time-converter-${{ matrix.artifact_prefix }}.tar.gz
-        asset_name: time-converter-${{ matrix.artifact_prefix }}.tar.gz
-        asset_content_type: application/gzip
