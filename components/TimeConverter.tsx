@@ -207,6 +207,21 @@ export const TimeConverter: React.FC = () => {
               </button>
             </div>
         </div>
+        
+        {/* Time Total Duration Card */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+            <StatCard
+              label="时间总时长"
+              value={(() => {
+                const totalMinutes = stats.totalMinutes;
+                // 格式化为保留5位小数，整数部分添加千分位分隔符
+                return totalMinutes.toLocaleString('zh-CN', {
+                  minimumFractionDigits: 5,
+                  maximumFractionDigits: 5
+                });
+              })()}
+            />
+        </div>
 
         {/* Results Table */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col flex-grow min-h-[400px]">
