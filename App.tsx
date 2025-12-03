@@ -25,7 +25,7 @@ export default function App() {
       </main>
 
       <footer className="py-6 text-center text-slate-400 text-sm">
-        <p>© {new Date().getFullYear()} 时间转换工具</p>
+        <p>JCLIO© {new Date().getFullYear()} 时间转换工具·田婼彤专用👑</p>
       </footer>
     </div>
   );
