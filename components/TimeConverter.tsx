@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   ArrowRight, 
   Trash2, 
@@ -6,7 +6,7 @@ import {
   RefreshCcw, 
   FileText, 
   Calculator,
-  Download
+  Clock
 } from 'lucide-react';
 
 interface DataPoint {
@@ -16,91 +16,154 @@ interface DataPoint {
   minutes: number;
 }
 
-interface Stats {
-  count: number;
-  totalSeconds: number;
-  totalMinutes: number;
-  avgSeconds: number;
-  avgMinutes: number;
-  maxMinutes: number;
-  minMinutes: number;
+interface TimeSlotData {
+  [key: string]: string; // 时间段ID -> 输入文本
 }
 
-const SAMPLE_DATA = ``;
+interface TimeSlotStats {
+  [key: string]: {
+    dataPoints: DataPoint[];
+    totalSeconds: number;
+    totalMinutes: number;
+  };
+}
+
+// 定义时间段
+const TIME_SLOTS = [
+  { id: '10-11', label: '10-11', description: '10点到11点' },
+  { id: '11-12', label: '11-12', description: '11点到12点' },
+  { id: '1.5-2.5', label: '1.5-2.5', description: '1点半到2点半' },
+  { id: '2.5-3.5', label: '2.5-3.5', description: '2点半到3点半' },
+  { id: '3.5-4.5', label: '3.5-4.5', description: '3点半到4点半' },
+  { id: '4.5-5.5', label: '4.5-5.5', description: '4点半到5点半' },
+  { id: '5.5-6.5', label: '5.5-6.5', description: '5点半到6点半' },
+  { id: '6.5-7.5', label: '6.5-7.5', description: '6点半到7点半' },
+];
+
+const STORAGE_KEY = 'timeConverterData';
 
 export const TimeConverter: React.FC = () => {
-  const [inputText, setInputText] = useState<string>(SAMPLE_DATA);
-  const [copied, setCopied] = useState<boolean>(false);
+  const [activeTimeSlot, setActiveTimeSlot] = useState<string>('10-11');
+  const [timeSlotData, setTimeSlotData] = useState<TimeSlotData>({});
+  const [copiedTimeSlot, setCopiedTimeSlot] = useState<string | null>(null);
   const [totalTimeCopied, setTotalTimeCopied] = useState<boolean>(false);
 
-  // Parse logic
-  const { dataPoints, stats } = useMemo(() => {
-    const lines = inputText.split('\n');
-    const parsed: DataPoint[] = [];
-    
-    let totalSec = 0;
-    let maxMin = -Infinity;
-    let minMin = Infinity;
-
-    lines.forEach((line, index) => {
-      const trimmed = line.trim();
-      if (!trimmed) return;
-
-      // Match number potentially followed by 's' (case insensitive)
-      // Regex explanation:
-      // ^ start of string
-      // ([\d.]+) capture group for digits and dots
-      // s? optional 's' character
-      // $ end of string
-      const match = trimmed.match(/^([\d.]+)s?$/i);
-      
-      if (match && match[1]) {
-        const seconds = parseFloat(match[1]);
-        if (!isNaN(seconds)) {
-          const minutes = seconds / 60;
-          parsed.push({
-            id: index,
-            original: trimmed,
-            seconds,
-            minutes
-          });
-
-          totalSec += seconds;
-          if (minutes > maxMin) maxMin = minutes;
-          if (minutes < minMin) minMin = minutes;
-        }
+  // 从localStorage加载数据
+  useEffect(() => {
+    try {
+      const savedData = localStorage.getItem(STORAGE_KEY);
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        setTimeSlotData(parsedData);
       }
+    } catch (error) {
+      console.error('Failed to load saved data:', error);
+    }
+  }, []);
+
+  // 保存数据到localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(timeSlotData));
+    } catch (error) {
+      console.error('Failed to save data:', error);
+    }
+  }, [timeSlotData]);
+
+  // 获取当前时间段的输入数据
+  const currentInputText = timeSlotData[activeTimeSlot] || '';
+
+  // 解析逻辑 - 为每个时间段计算数据
+  const { timeSlotStats, overallStats } = useMemo(() => {
+    const stats: TimeSlotStats = {};
+    let overallTotalSeconds = 0;
+
+    TIME_SLOTS.forEach(slot => {
+      const inputText = timeSlotData[slot.id] || '';
+      const lines = inputText.split('\n');
+      const parsed: DataPoint[] = [];
+      let totalSec = 0;
+
+      lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+
+        const match = trimmed.match(/^([\d.]+)s?$/i);
+        
+        if (match && match[1]) {
+          const seconds = parseFloat(match[1]);
+          if (!isNaN(seconds)) {
+            const minutes = seconds / 60;
+            parsed.push({
+              id: index,
+              original: trimmed,
+              seconds,
+              minutes
+            });
+            totalSec += seconds;
+          }
+        }
+      });
+
+      stats[slot.id] = {
+        dataPoints: parsed,
+        totalSeconds: totalSec,
+        totalMinutes: totalSec / 60
+      };
+
+      overallTotalSeconds += totalSec;
     });
 
-    const count = parsed.length;
-    const statsObj: Stats = {
-      count,
-      totalSeconds: totalSec,
-      totalMinutes: totalSec / 60,
-      avgSeconds: count > 0 ? totalSec / count : 0,
-      avgMinutes: count > 0 ? (totalSec / 60) / count : 0,
-      maxMinutes: maxMin === -Infinity ? 0 : maxMin,
-      minMinutes: minMin === Infinity ? 0 : minMin,
+    const overallStatsObj = {
+      totalSeconds: overallTotalSeconds,
+      totalMinutes: overallTotalSeconds / 60
     };
 
-    return { dataPoints: parsed, stats: statsObj };
-  }, [inputText]);
+    return { timeSlotStats: stats, overallStats: overallStatsObj };
+  }, [timeSlotData]);
 
-  // Handlers
-  const handleCopyResults = () => {
-    const resultText = dataPoints.map(p => `${p.minutes.toFixed(4)} min`).join('\n');
-    navigator.clipboard.writeText(resultText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  // 处理时间段切换
+  const handleTimeSlotChange = (slotId: string) => {
+    setActiveTimeSlot(slotId);
   };
 
+  // 处理输入文本变化
+  const handleInputChange = (value: string) => {
+    setTimeSlotData(prev => ({
+      ...prev,
+      [activeTimeSlot]: value
+    }));
+  };
+
+  // 清空当前时间段数据
+  const handleClearCurrent = () => {
+    setTimeSlotData(prev => ({
+      ...prev,
+      [activeTimeSlot]: ''
+    }));
+  };
+
+  // 清空所有数据
+  const handleClearAll = () => {
+    setTimeSlotData({});
+  };
+
+  // 复制时间段总秒数
+  const handleCopyTimeSlotTotal = (slotId: string) => {
+    const stats = timeSlotStats[slotId];
+    if (stats && stats.dataPoints.length > 0) {
+      navigator.clipboard.writeText(`${stats.totalSeconds.toFixed(2)}`);
+      setCopiedTimeSlot(slotId);
+      setTimeout(() => setCopiedTimeSlot(null), 2000);
+    }
+  };
+
+  // 复制总时长
   const handleCopyTotalTime = () => {
-    // 修复的时间计算逻辑
-    const totalMinutes = stats.totalMinutes;
+    const totalMinutes = overallStats.totalMinutes;
     let minutes = Math.floor(totalMinutes);
     let seconds = Math.round((totalMinutes % 1) * 60);
     
-    // 处理秒数进位：如果秒数达到60，则分钟加1，秒数重置为0
     if (seconds === 60) {
       minutes += 1;
       seconds = 0;
@@ -112,43 +175,62 @@ export const TimeConverter: React.FC = () => {
     setTimeout(() => setTotalTimeCopied(false), 2000);
   };
 
-  const handleDownloadCSV = () => {
-    const header = "原始数据,秒,分钟\n";
-    const rows = dataPoints.map(p => `${p.original},${p.seconds},${p.minutes.toFixed(4)}`).join('\n');
-    const blob = new Blob([header + rows], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'time_data_export.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       
       {/* Input Section */}
       <div className="lg:col-span-5 flex flex-col gap-4">
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col h-full min-h-[500px]">
+          
+          {/* 时间段Tab栏 */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                <Clock className="w-5 h-5 text-indigo-500" />
+                时间段选择
+              </h2>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {TIME_SLOTS.map(slot => (
+                <button
+                  key={slot.id}
+                  onClick={() => handleTimeSlotChange(slot.id)}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    activeTimeSlot === slot.id
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                  title={slot.description}
+                >
+                  {slot.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 输入数据标题 */}
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
               <FileText className="w-5 h-5 text-indigo-500" />
               输入数据
+              <span className="text-sm font-normal text-slate-500">
+                ({TIME_SLOTS.find(s => s.id === activeTimeSlot)?.description})
+              </span>
             </h2>
             <div className="flex gap-2">
               <button 
-                onClick={() => setInputText('')}
+                onClick={handleClearCurrent}
                 className="text-xs px-2 py-1 text-red-600 hover:bg-red-50 rounded transition-colors flex items-center gap-1"
-                title="清空所有文本"
+                title="清空当前时间段数据"
               >
                 <Trash2 size={14} /> 清空
               </button>
               <button 
-                onClick={() => setInputText(SAMPLE_DATA)}
-                className="text-xs px-2 py-1 text-slate-600 hover:bg-slate-100 rounded transition-colors flex items-center gap-1"
-                title="重置为示例文本"
+                onClick={handleClearAll}
+                className="text-xs px-2 py-1 text-orange-600 hover:bg-orange-50 rounded transition-colors flex items-center gap-1"
+                title="清空所有时间段数据"
               >
-                <RefreshCcw size={14} /> 示例
+                <Trash2 size={14} /> 全部清空
               </button>
             </div>
           </div>
@@ -156,12 +238,12 @@ export const TimeConverter: React.FC = () => {
           <textarea
             className="flex-grow w-full p-4 bg-slate-50 border border-slate-200 rounded-lg font-mono text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none text-slate-700 leading-relaxed"
             placeholder="请在此粘贴数据...&#10;示例：&#10;120s&#10;60s&#10;300.5s"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
+            value={currentInputText}
+            onChange={(e) => handleInputChange(e.target.value)}
           />
           
           <div className="mt-3 text-xs text-slate-500 text-right">
-            检测到 {inputText.split('\n').filter(l => l.trim()).length} 行数据
+            检测到 {currentInputText.split('\n').filter(l => l.trim()).length} 行数据
           </div>
         </div>
       </div>
@@ -176,118 +258,156 @@ export const TimeConverter: React.FC = () => {
       {/* Output Section */}
       <div className="lg:col-span-6 flex flex-col gap-4">
         
-        {/* Statistics Card */}
+        {/* Statistics Cards */}
         <div className="grid grid-cols-2 gap-3">
-            <StatCard label="数据行数" value={stats.count} />
-            <div className="relative">
-              {(() => {
-                const totalMinutes = stats.totalMinutes;
-                let minutes = Math.floor(totalMinutes);
-                let seconds = Math.round((totalMinutes % 1) * 60);
-                
-                // 处理秒数进位：如果秒数达到60，则分钟加1，秒数重置为0
-                if (seconds === 60) {
-                  minutes += 1;
-                  seconds = 0;
-                }
-                
-                return <StatCard label="分钟/秒" value={`标注${minutes}分钟${seconds}秒`} />;
-              })()}
-              <button
-                onClick={handleCopyTotalTime}
-                disabled={dataPoints.length === 0}
-                className={`absolute top-2 right-2 p-1.5 rounded text-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed
-                  ${totalTimeCopied
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                title="复制总时长"
-              >
-                {totalTimeCopied ? '✓' : <Copy size={12} />}
-              </button>
-            </div>
+          <StatCard label="数据行数" value={timeSlotStats[activeTimeSlot]?.dataPoints.length || 0} />
+          <div className="relative">
+            {(() => {
+              const totalMinutes = overallStats.totalMinutes;
+              let minutes = Math.floor(totalMinutes);
+              let seconds = Math.round((totalMinutes % 1) * 60);
+              
+              if (seconds === 60) {
+                minutes += 1;
+                seconds = 0;
+              }
+              
+              return <StatCard label="分钟/秒" value={`标注${minutes}分钟${seconds}秒`} />;
+            })()}
+            <button
+              onClick={handleCopyTotalTime}
+              disabled={overallStats.totalSeconds === 0}
+              className={`absolute top-2 right-2 p-1.5 rounded text-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed
+                ${totalTimeCopied
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              title="复制总时长"
+            >
+              {totalTimeCopied ? '✓' : <Copy size={12} />}
+            </button>
+          </div>
         </div>
         
         {/* Time Total Duration Card */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-            <StatCard
-              label="时间总时长"
-              value={(() => {
-                const totalMinutes = stats.totalMinutes;
-                // 格式化为保留5位小数，整数部分添加千分位分隔符
-                return totalMinutes.toLocaleString('zh-CN', {
-                  minimumFractionDigits: 5,
-                  maximumFractionDigits: 5
-                });
-              })()}
-            />
+          <StatCard
+            label="时间总时长"
+            value={(() => {
+              const totalMinutes = overallStats.totalMinutes;
+              return totalMinutes.toLocaleString('zh-CN', {
+                minimumFractionDigits: 5,
+                maximumFractionDigits: 5
+              });
+            })()}
+          />
         </div>
 
-        {/* Results Table */}
+        {/* Time Slots Results */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col flex-grow min-h-[400px]">
           <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-t-xl">
             <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
               <Calculator className="w-5 h-5 text-emerald-500" />
-              计算结果
+              时间段统计
             </h2>
-            <div className="flex gap-2">
-               <button 
-                onClick={handleDownloadCSV}
-                disabled={dataPoints.length === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Download size={14} />
-                <span className="hidden sm:inline">CSV</span>
-              </button>
-              <button 
-                onClick={handleCopyResults}
-                disabled={dataPoints.length === 0}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed
-                  ${copied 
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                    : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 hover:border-indigo-700 shadow-sm'
-                  }`}
-              >
-                {copied ? <span className="flex items-center gap-1">已复制!</span> : <span className="flex items-center gap-1"><Copy size={14} /> 复制分钟数</span>}
-              </button>
-            </div>
           </div>
 
           <div className="overflow-y-auto flex-grow h-0 p-2">
-             {dataPoints.length === 0 ? (
-               <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
-                 <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                   <Calculator size={32} className="opacity-50" />
-                 </div>
-                 <p className="text-center">未找到有效数据。<br/>请输入以 's' 结尾的数值或纯数字。</p>
-               </div>
-             ) : (
-              <table className="w-full text-sm text-left">
-                <thead className="text-xs text-slate-500 uppercase bg-slate-50 sticky top-0">
-                  <tr>
-                    <th className="px-4 py-2 rounded-l-lg">原始数据</th>
-                    <th className="px-4 py-2">秒 (s)</th>
-                    <th className="px-4 py-2 rounded-r-lg text-right font-bold text-slate-700">分钟 (min)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {dataPoints.map((point) => (
-                    <tr key={point.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-2.5 font-mono text-slate-500">{point.original}</td>
-                      <td className="px-4 py-2.5 font-mono text-slate-600">{point.seconds.toFixed(2)}</td>
-                      <td className="px-4 py-2.5 font-mono font-medium text-emerald-600 text-right">
-                        {point.minutes.toFixed(4)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-             )}
+            {TIME_SLOTS.every(slot => timeSlotStats[slot.id]?.dataPoints.length === 0) ? (
+              <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                  <Calculator size={32} className="opacity-50" />
+                </div>
+                <p className="text-center">未找到有效数据。<br/>请选择时间段并输入以 's' 结尾的数值或纯数字。</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {TIME_SLOTS.map(slot => {
+                  const stats = timeSlotStats[slot.id];
+                  const hasData = stats && stats.dataPoints.length > 0;
+                  
+                  return (
+                    <div 
+                      key={slot.id} 
+                      className={`border rounded-lg p-3 transition-all ${
+                        activeTimeSlot === slot.id 
+                          ? 'border-indigo-300 bg-indigo-50/30' 
+                          : 'border-slate-200 bg-white'
+                      } ${hasData ? 'shadow-sm' : ''}`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-slate-800">{slot.label}</span>
+                          <span className="text-xs text-slate-500">({slot.description})</span>
+                          {hasData && (
+                            <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                              {stats.dataPoints.length} 条数据
+                            </span>
+                          )}
+                        </div>
+                        {hasData && (
+                          <button
+                            onClick={() => handleCopyTimeSlotTotal(slot.id)}
+                            className={`text-xs px-2 py-1 rounded transition-all flex items-center gap-1
+                              ${copiedTimeSlot === slot.id
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                              }`}
+                            title="复制时间段总秒数"
+                          >
+                            {copiedTimeSlot === slot.id ? (
+                              <>✓ 已复制</>
+                            ) : (
+                              <><Copy size={12} /> 复制秒数</>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                      
+                      {hasData ? (
+                        <div className="text-sm">
+                          <div className="grid grid-cols-2 gap-4 mb-2">
+                            <div>
+                              <span className="text-slate-500">总秒数: </span>
+                              <span className="font-mono font-medium text-slate-800">
+                                {stats.totalSeconds.toFixed(2)}s
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500">总分钟: </span>
+                              <span className="font-mono font-medium text-emerald-600">
+                                {stats.totalMinutes.toFixed(4)}min
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <details className="text-xs text-slate-600">
+                            <summary className="cursor-pointer hover:text-slate-800">查看详细数据</summary>
+                            <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
+                              {stats.dataPoints.map(point => (
+                                <div key={point.id} className="flex justify-between py-1 border-b border-slate-100">
+                                  <span className="font-mono">{point.original}</span>
+                                  <span className="font-mono">{point.minutes.toFixed(4)}min</span>
+                                </div>
+                              ))}
+                            </div>
+                          </details>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-slate-400 italic">
+                          暂无数据
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
           
           <div className="p-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 rounded-b-xl flex justify-between items-center">
-             <span>计算公式: 秒 / 60</span>
-             <span>显示 {dataPoints.length} 行</span>
+            <span>计算公式: 秒 / 60</span>
+            <span>共 {TIME_SLOTS.filter(slot => timeSlotStats[slot.id]?.dataPoints.length > 0).length} 个时间段有数据</span>
           </div>
         </div>
       </div>
