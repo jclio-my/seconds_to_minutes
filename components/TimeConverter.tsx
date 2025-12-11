@@ -47,6 +47,7 @@ export const TimeConverter: React.FC = () => {
   const [timeSlotData, setTimeSlotData] = useState<TimeSlotData>({});
   const [copiedTimeSlot, setCopiedTimeSlot] = useState<string | null>(null);
   const [totalTimeCopied, setTotalTimeCopied] = useState<boolean>(false);
+  const [timeSlotMinutesCopied, setTimeSlotMinutesCopied] = useState<string | null>(null);
 
   // 从localStorage加载数据
   useEffect(() => {
@@ -178,6 +179,16 @@ export const TimeConverter: React.FC = () => {
     }
   };
 
+  // 复制时间段总分钟数
+  const handleCopyTimeSlotMinutes = (slotId: string) => {
+    const stats = timeSlotStats[slotId];
+    if (stats && stats.dataPoints.length > 0) {
+      navigator.clipboard.writeText(`${stats.totalMinutes.toFixed(4)}`);
+      setTimeSlotMinutesCopied(slotId);
+      setTimeout(() => setTimeSlotMinutesCopied(null), 2000);
+    }
+  };
+
   // 复制总时长
   const handleCopyTotalTime = () => {
     const totalMinutes = overallStats.totalMinutes;
@@ -279,8 +290,8 @@ export const TimeConverter: React.FC = () => {
       <div className="lg:col-span-6 flex flex-col gap-4">
         
         {/* Statistics Cards */}
-        <div className="grid grid-cols-2 gap-3">
-          <StatCard label="数据行数" value={timeSlotStats[activeTimeSlot]?.dataPoints.length || 0} />
+        <div className="grid grid-cols-3 gap-3">
+          <StatCard label="数据行数" value={Object.values(timeSlotStats).reduce((total: number, stats: any) => total + stats.dataPoints.length, 0)} />
           <div className="relative">
             {(() => {
               const totalMinutes = overallStats.totalMinutes;
@@ -307,20 +318,78 @@ export const TimeConverter: React.FC = () => {
               {totalTimeCopied ? '✓' : <Copy size={12} />}
             </button>
           </div>
-        </div>
-        
-        {/* Time Total Duration Card */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-          <StatCard
-            label="时间总时长"
-            value={(() => {
+          <div className="relative">
+            {(() => {
               const totalMinutes = overallStats.totalMinutes;
-              return totalMinutes.toLocaleString('zh-CN', {
+              return <StatCard label="时间总时长" value={totalMinutes.toLocaleString('zh-CN', {
                 minimumFractionDigits: 5,
                 maximumFractionDigits: 5
-              });
+              })} />;
             })()}
-          />
+          </div>
+        </div>
+        
+        {/* Current Time Slot Details Card */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-slate-800">
+              {TIME_SLOTS.find(s => s.id === activeTimeSlot)?.label || '当前时间段'}
+            </h3>
+            {timeSlotStats[activeTimeSlot]?.dataPoints.length > 0 && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleCopyTimeSlotTotal(activeTimeSlot)}
+                  className={`text-xs px-2 py-1 rounded transition-all flex items-center gap-1
+                    ${copiedTimeSlot === activeTimeSlot
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  title="复制当前时间段总秒数"
+                >
+                  {copiedTimeSlot === activeTimeSlot ? (
+                    <>✓ 已复制秒数</>
+                  ) : (
+                    <><Copy size={12} /> 复制秒数</>
+                  )}
+                </button>
+                <button
+                  onClick={() => handleCopyTimeSlotMinutes(activeTimeSlot)}
+                  className={`text-xs px-2 py-1 rounded transition-all flex items-center gap-1
+                    ${timeSlotMinutesCopied === activeTimeSlot
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  title="复制当前时间段总分钟数"
+                >
+                  {timeSlotMinutesCopied === activeTimeSlot ? (
+                    <>✓ 已复制分钟</>
+                  ) : (
+                    <><Copy size={12} /> 复制分钟</>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+          {timeSlotStats[activeTimeSlot]?.dataPoints.length > 0 ? (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="text-slate-500">总秒数: </span>
+                <span className="font-mono font-medium text-slate-800">
+                  {timeSlotStats[activeTimeSlot].totalSeconds.toFixed(2)}s
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-500">总分钟: </span>
+                <span className="font-mono font-medium text-emerald-600">
+                  {timeSlotStats[activeTimeSlot].totalMinutes.toFixed(4)}min
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-slate-400 italic">
+              当前时间段暂无数据
+            </div>
+          )}
         </div>
 
         {/* Time Slots Results */}
