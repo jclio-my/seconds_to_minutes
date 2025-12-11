@@ -342,23 +342,25 @@ export const TimeConverter: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {TIME_SLOTS.map(slot => {
+                {TIME_SLOTS.filter(slot => {
+                  const stats = timeSlotStats[slot.id];
+                  return stats && stats.dataPoints.length > 0;
+                }).map(slot => {
                   const stats = timeSlotStats[slot.id];
                   const hasData = stats && stats.dataPoints.length > 0;
                   
                   return (
-                    <div 
-                      key={slot.id} 
+                    <div
+                      key={slot.id}
                       className={`border rounded-lg p-3 transition-all ${
-                        activeTimeSlot === slot.id 
-                          ? 'border-indigo-300 bg-indigo-50/30' 
+                        activeTimeSlot === slot.id
+                          ? 'border-indigo-300 bg-indigo-50/30'
                           : 'border-slate-200 bg-white'
-                      } ${hasData ? 'shadow-sm' : ''}`}
+                      } shadow-sm`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-slate-800">{slot.label}</span>
-                          <span className="text-xs text-slate-500">({slot.description})</span>
                           {hasData && (
                             <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
                               {stats.dataPoints.length} 条数据
