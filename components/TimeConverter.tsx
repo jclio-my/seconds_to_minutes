@@ -30,14 +30,14 @@ interface TimeSlotStats {
 
 // 定义时间段
 const TIME_SLOTS = [
-  { id: '10-11', label: '10-11', description: '10点到11点' },
-  { id: '11-12', label: '11-12', description: '11点到12点' },
-  { id: '1.5-2.5', label: '1.5-2.5', description: '1点半到2点半' },
-  { id: '2.5-3.5', label: '2.5-3.5', description: '2点半到3点半' },
-  { id: '3.5-4.5', label: '3.5-4.5', description: '3点半到4点半' },
-  { id: '4.5-5.5', label: '4.5-5.5', description: '4点半到5点半' },
-  { id: '5.5-6.5', label: '5.5-6.5', description: '5点半到6点半' },
-  { id: '6.5-7.5', label: '6.5-7.5', description: '6点半到7点半' },
+  { id: '10-11', label: '10点到11点', description: '10点到11点' },
+  { id: '11-12', label: '11点到12点', description: '11点到12点' },
+  { id: '1.5-2.5', label: '1点半到2点半', description: '1点半到2点半' },
+  { id: '2.5-3.5', label: '2点半到3点半', description: '2点半到3点半' },
+  { id: '3.5-4.5', label: '3点半到4点半', description: '3点半到4点半' },
+  { id: '4.5-5.5', label: '4点半到5点半', description: '4点半到5点半' },
+  { id: '5.5-6.5', label: '5点半到6点半', description: '5点半到6点半' },
+  { id: '6.5-7.5', label: '6点半到7点半', description: '6点半到7点半' },
 ];
 
 const STORAGE_KEY = 'timeConverterData';
@@ -88,20 +88,40 @@ export const TimeConverter: React.FC = () => {
         const trimmed = line.trim();
         if (!trimmed) return;
 
-        const match = trimmed.match(/^([\d.]+)s?$/i);
+        // 尝试匹配分钟:秒格式 (例如: 1:56.57)
+        const minuteMatch = trimmed.match(/^(\d+):([\d.]+)$/);
+        // 尝试匹配纯秒数格式 (例如: 120.5s 或 120.5)
+        const secondMatch = trimmed.match(/^([\d.]+)s?$/i);
         
-        if (match && match[1]) {
-          const seconds = parseFloat(match[1]);
-          if (!isNaN(seconds)) {
-            const minutes = seconds / 60;
-            parsed.push({
-              id: index,
-              original: trimmed,
-              seconds,
-              minutes
-            });
-            totalSec += seconds;
+        let seconds = 0;
+        let isValid = false;
+        
+        if (minuteMatch && minuteMatch[1] && minuteMatch[2]) {
+          // 分钟:秒格式处理
+          const minutes = parseFloat(minuteMatch[1]);
+          const secondsPart = parseFloat(minuteMatch[2]);
+          if (!isNaN(minutes) && !isNaN(secondsPart)) {
+            seconds = minutes * 60 + secondsPart;
+            isValid = true;
           }
+        } else if (secondMatch && secondMatch[1]) {
+          // 纯秒数格式处理
+          const secondsValue = parseFloat(secondMatch[1]);
+          if (!isNaN(secondsValue)) {
+            seconds = secondsValue;
+            isValid = true;
+          }
+        }
+        
+        if (isValid) {
+          const minutes = seconds / 60;
+          parsed.push({
+            id: index,
+            original: trimmed,
+            seconds,
+            minutes
+          });
+          totalSec += seconds;
         }
       });
 
@@ -195,7 +215,7 @@ export const TimeConverter: React.FC = () => {
                 <button
                   key={slot.id}
                   onClick={() => handleTimeSlotChange(slot.id)}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-all ${
                     activeTimeSlot === slot.id
                       ? 'bg-indigo-600 text-white shadow-sm'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -237,7 +257,7 @@ export const TimeConverter: React.FC = () => {
           
           <textarea
             className="flex-grow w-full p-4 bg-slate-50 border border-slate-200 rounded-lg font-mono text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none text-slate-700 leading-relaxed"
-            placeholder="请在此粘贴数据...&#10;示例：&#10;120s&#10;60s&#10;300.5s"
+            placeholder="请在此粘贴数据...&#10;示例：&#10;120s&#10;60s&#10;300.5s&#10;1:56.57 (分钟:秒格式)"
             value={currentInputText}
             onChange={(e) => handleInputChange(e.target.value)}
           />
@@ -318,7 +338,7 @@ export const TimeConverter: React.FC = () => {
                 <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
                   <Calculator size={32} className="opacity-50" />
                 </div>
-                <p className="text-center">未找到有效数据。<br/>请选择时间段并输入以 's' 结尾的数值或纯数字。</p>
+                <p className="text-center">未找到有效数据。<br/>请选择时间段并输入以 's' 结尾的数值、纯数字或分钟:秒格式(如1:56.57)。</p>
               </div>
             ) : (
               <div className="space-y-3">
