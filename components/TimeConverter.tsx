@@ -183,7 +183,17 @@ export const TimeConverter: React.FC = () => {
   const handleCopyTimeSlotMinutes = (slotId: string) => {
     const stats = timeSlotStats[slotId];
     if (stats && stats.dataPoints.length > 0) {
-      navigator.clipboard.writeText(`${stats.totalMinutes.toFixed(4)}`);
+      const totalMinutes = stats.totalMinutes;
+      let minutes = Math.floor(totalMinutes);
+      let seconds = Math.round((totalMinutes % 1) * 60);
+      
+      if (seconds === 60) {
+        minutes += 1;
+        seconds = 0;
+      }
+      
+      const timeText = `${minutes}分${seconds}秒`;
+      navigator.clipboard.writeText(timeText);
       setTimeSlotMinutesCopied(slotId);
       setTimeout(() => setTimeSlotMinutesCopied(null), 2000);
     }
@@ -381,7 +391,18 @@ export const TimeConverter: React.FC = () => {
               <div>
                 <span className="text-slate-500">总分钟: </span>
                 <span className="font-mono font-medium text-emerald-600">
-                  {timeSlotStats[activeTimeSlot].totalMinutes.toFixed(4)}min
+                  {(() => {
+                    const totalMinutes = timeSlotStats[activeTimeSlot].totalMinutes;
+                    let minutes = Math.floor(totalMinutes);
+                    let seconds = Math.round((totalMinutes % 1) * 60);
+                    
+                    if (seconds === 60) {
+                      minutes += 1;
+                      seconds = 0;
+                    }
+                    
+                    return `${minutes}分${seconds}秒`;
+                  })()}
                 </span>
               </div>
             </div>
