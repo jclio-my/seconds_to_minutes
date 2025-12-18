@@ -30,6 +30,7 @@ interface TimeSlotStats {
 
 // 定义时间段
 const TIME_SLOTS = [
+  { id: 'before-10.5', label: '10点半之前', description: '10点半之前' },
   { id: '10-11', label: '10点到11点', description: '10点到11点' },
   { id: '11-12', label: '11点到12点', description: '11点到12点' },
   { id: '1.5-2.5', label: '1点半到2点半', description: '1点半到2点半' },
@@ -38,12 +39,22 @@ const TIME_SLOTS = [
   { id: '4.5-5.5', label: '4点半到5点半', description: '4点半到5点半' },
   { id: '5.5-6.5', label: '5点半到6点半', description: '5点半到6点半' },
   { id: '6.5-7.5', label: '6点半到7点半', description: '6点半到7点半' },
+  { id: '7.5-8.5', label: '7点半到8点半', description: '7点半到8点半' },
+  { id: 'after-8.5', label: '8点半之后', description: '8点半之后' },
 ];
 
 const STORAGE_KEY = 'timeConverterData';
+const ACTIVE_TIMESLOT_KEY = 'timeConverterActiveTimeSlot';
 
 export const TimeConverter: React.FC = () => {
-  const [activeTimeSlot, setActiveTimeSlot] = useState<string>('10-11');
+  const [activeTimeSlot, setActiveTimeSlot] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(ACTIVE_TIMESLOT_KEY);
+      return saved || '10-11';
+    } catch {
+      return '10-11';
+    }
+  });
   const [timeSlotData, setTimeSlotData] = useState<TimeSlotData>({});
   const [copiedTimeSlot, setCopiedTimeSlot] = useState<string | null>(null);
   const [totalTimeCopied, setTotalTimeCopied] = useState<boolean>(false);
@@ -70,6 +81,15 @@ export const TimeConverter: React.FC = () => {
       console.error('Failed to save data:', error);
     }
   }, [timeSlotData]);
+
+  // 保存活跃时间段到localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(ACTIVE_TIMESLOT_KEY, activeTimeSlot);
+    } catch (error) {
+      console.error('Failed to save active time slot:', error);
+    }
+  }, [activeTimeSlot]);
 
   // 获取当前时间段的输入数据
   const currentInputText = timeSlotData[activeTimeSlot] || '';
